@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "seo-content-generator"
+version = "0.1.0"
+description = "SEO Content Generator using LangChain and Exa AI"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+python-dotenv = "1.0.0"
+langchain = "0.1.12"
+langchain-anthropic = "0.1.4"
+exa-py = "1.0.6"
+requests = "2.31.0"
+beautifulsoup4 = "4.12.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.0" 
