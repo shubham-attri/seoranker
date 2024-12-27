@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "seoranker"
+version = "0.1.0"
+description = "SEO Content Generator using LangChain and Exa AI"
+authors = ["Shubham Attri <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "seoranker"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+python-dotenv = "^1.0.1"
+langchain = "^0.3.13"
+langchain-anthropic = "^0.3.1"
+langchain-exa = "^0.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
