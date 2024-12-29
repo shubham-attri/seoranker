@@ -80,18 +80,94 @@ cp .env.example .env
 1. Configure your brand voice in `config/brand.json`:
 ```json
 {
-  "name": "Your Brand",
-  "description": "Brand description",
-  "tone_of_voice": "professional, friendly, authoritative",
-  "target_audience": "specific demographic",
-  "key_values": ["Quality", "Innovation", "Sustainability"],
+  "name": "Bestia Brisk",
+  "description": "Bestia Brisk is a premium coffee blend that combines the rich flavors of Arabica beans with the robust taste of Robusta beans. It's a smooth and balanced blend that's perfect for any time of day.",
+  "tone_of_voice": "professional, friendly, and authoritative, with a focus on coffee expertise and authenticity",
+  "target_audience": "coffee enthusiasts aged 25-45 who appreciate premium, artisanal coffee",
+  "key_values": [
+    "Premium Quality",
+    "Artisanal Craftsmanship",
+    "Sustainable Sourcing",
+    "Single Origin Excellence",
+    "Small Batch Production"
+  ],
+  "website": "https://bestiabrisk.com/",
+  "products": [
+    {
+      "name": "Bestia Brisk Original",
+      "description": "A premium single-origin coffee from Coorg, featuring:\n- AAA Grade beans\n- Perfect blend of 60% Arabica and 40% Robusta\n- Light roasted using slow-roasting technique\n- Small-batch production for quality control\n- Premium instant coffee granules"
+    }
+  ],
   "style_guide": {
-    "writing_style": "Expert yet approachable",
-    "formatting": "Clear headings and bullet points",
-    "key_terms": ["term1", "term2"]
-  }
+    "writing_style": "Expert yet approachable, focusing on coffee craftsmanship and quality",
+    "formatting": "Use short, engaging paragraphs with clear headings and bullet points",
+    "language": "Use coffee industry terminology while remaining accessible to enthusiasts",
+    "key_terms": [
+      "single-origin",
+      "artisanal",
+      "slow-roasted",
+      "small-batch",
+      "premium blend",
+      "Coorg coffee",
+      "light roast"
+    ],
+    "tone_guidelines": {
+      "do": [
+        "Emphasize quality and craftsmanship",
+        "Share coffee expertise confidently",
+        "Be transparent about sourcing and process",
+        "Use sensory descriptions"
+      ],
+      "avoid": [
+        "Overly technical jargon",
+        "Generic coffee descriptions",
+        "Pushy sales language"
+      ]
+    }
+  },
+  "brand_story": {
+    "origin": "Crafted in the lush coffee plantations of Coorg",
+    "mission": "To deliver premium, single-origin coffee experiences through artisanal craftsmanship",
+    "values": "We believe in sustainable sourcing, small-batch excellence, and preserving coffee's authentic flavors"
+  },
+  "cta_templates": [
+    "Experience the artisanal excellence of {brand_name}",
+    "Discover our premium Coorg coffee blend",
+    "Elevate your coffee experience with {product_name}",
+    "Taste the difference of small-batch craftsmanship",
+    "Begin your premium coffee journey today"
+  ],
+  "content_themes": [
+    "Coffee craftsmanship and expertise",
+    "Single-origin coffee education",
+    "Sustainable coffee production",
+    "Artisanal roasting techniques",
+    "Coffee tasting and appreciation",
+    "Coorg coffee heritage"
+  ],
+  "social_media_voice": {
+    "linkedin": "Professional yet passionate about coffee craft",
+    "twitter": "Engaging coffee expertise with personality",
+    "instagram": "Visual storytelling of our coffee journey"
+  },
+  "hashtags": [
+    "#BestiaBrisk",
+    "#PremiumCoffee",
+    "#SingleOrigin",
+    "#CoorgCoffee",
+    "#ArtisanalCoffee",
+    "#CoffeeCraft",
+    "#SmallBatchCoffee"
+  ]
 }
 ```
+
+This configuration helps maintain consistent brand voice across all generated content, ensuring:
+- Coffee expertise shines through
+- Premium positioning is maintained
+- Brand story is woven naturally
+- Product features are highlighted appropriately
+- Social media content matches platform expectations
 
 2. Run the content generator:
 ```bash
