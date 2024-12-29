@@ -16,6 +16,30 @@ class ContentHandler:
         self.base_dir.mkdir(exist_ok=True)
         self.knowledge_base_dir.mkdir(exist_ok=True)
     
+    def _extract_title(self, content: str) -> str:
+        """Extract title from blog content"""
+        if not content:
+            return "blog-post"
+        
+        # Split into lines and remove empty ones
+        lines = [line.strip() for line in content.split('\n') if line.strip()]
+        
+        for line in lines:
+            # Check various title formats
+            if any(marker in line for marker in ["SEO Blog Post:", "Title:", "# "]):
+                # Remove markers and clean up
+                title = line
+                title = title.replace("SEO Blog Post:", "")
+                title = title.replace("Title:", "")
+                title = title.replace("# ", "")
+                title = title.strip().strip('"').strip()
+                
+                if title:  # If we found a valid title
+                    return title
+        
+        # If no title found, use first non-empty line
+        return lines[0] if lines else "blog-post"
+    
     def save_content(self, keyword: str, content: dict) -> dict:
         """Save generated content in appropriate formats"""
         try:
@@ -26,17 +50,17 @@ class ContentHandler:
             
             # Extract title from blog post content
             blog_content = content.get("blog_post", "")
-            blog_title = "untitled"
-            if blog_content:
-                # Try to extract title from the first line
-                first_line = blog_content.split('\n')[0]
-                if "SEO Blog Post:" in first_line:
-                    blog_title = first_line.replace('SEO Blog Post:', '').strip().strip('"')
-                elif first_line.startswith('#'):
-                    blog_title = first_line.lstrip('#').strip()
+            blog_title = self._extract_title(blog_content)
             
             # Create safe filename from title
-            safe_title = "".join(c for c in blog_title if c.isalnum() or c in (' ', '-', '_'))[:50]
+            safe_title = "".join(c for c in blog_title if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_title = safe_title.replace(' ', '-').lower()[:100]  # Limit length and make URL-friendly
+            
+            if not safe_title:  # Fallback if no valid title found
+                safe_title = "blog-post"
+            
+            logger.debug(f"Extracted title: '{blog_title}'")
+            logger.debug(f"Safe filename: '{safe_title}'")
             
             saved_files = {}
             
