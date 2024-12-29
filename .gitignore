@@ -4,6 +4,9 @@ __pycache__/
 .env
 .venv/
 venv/
+generated_content/
+knowledge_base/
+config/brand.json
 
 # IDE
 .vscode/
