@@ -1,0 +1,32 @@
+{
+  "title": "untitled",
+  "keyword": "instant coffee",
+  "timestamp": "20241229_211129",
+  "files": {
+    "blog": "generated_content/instant coffee_20241229_211129/untitled.md",
+    "linkedin": "generated_content/instant coffee_20241229_211129/linkedin_post.md",
+    "twitter": "generated_content/instant coffee_20241229_211129/twitter_thread.md",
+    "hashtags": "generated_content/instant coffee_20241229_211129/hashtags.md"
+  },
+  "content_stats": {
+    "blog_length": 3595,
+    "linkedin_length": 1119,
+    "twitter_thread_length": 1520,
+    "hashtags_count": 0
+  },
+  "content_types": [
+    "comprehensive",
+    "comprehensive",
+    "expert",
+    "interesting",
+    "interesting"
+  ],
+  "generated_at": "2024-12-29T21:11:29.228984",
+  "sources": [
+    "https://www.friedcoffee.com/coffee/best/instant/",
+    "https://www.nytimes.com/wirecutter/reviews/best-instant-coffee/",
+    "https://www.bonappetit.com/test-kitchen/article/instant-coffee-makes-better",
+    "https://www.usatoday.com/story/news/world/2014/07/20/newser-americans-instant-coffee/12910855/",
+    "https://www.washingtonpost.com/news/wonk/wp/2014/07/14/almost-half-of-the-world-actually-prefers-instant-coffee/"
+  ]
+}
