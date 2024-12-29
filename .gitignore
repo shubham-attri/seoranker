@@ -6,7 +6,6 @@ __pycache__/
 venv/
 generated_content/
 knowledge_base/
-config/brand.json
 
 # IDE
 .vscode/
