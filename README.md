@@ -281,3 +281,33 @@ Detailed logging is available at multiple levels:
 - Anthropic API key
 - Exa AI API key
 - Poetry for dependency management 
+
+
+'''
+Should only have one H1 tag, that is our heading, title, and should have 2-3 h2 tags supporting the targetted keyword, and then the page should link to atleast 2 pages in our website and 2 external website 
+'''
+
+
+How to create a blog article in shopify
+
+mutation CreateArticle {
+  articleCreate(article: { 
+    blogId: "gid://shopify/Blog/123456789", 
+    title: "My Article Title", 
+    body: "<h1>Article Content</h1>", 
+    tags: ["tag1", "tag2"], 
+    author: "John Doe", 
+    publishedAt: "2024-01-01T00:00:00Z"
+  }) {
+    article {
+      id
+      title
+      body
+      tags
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
