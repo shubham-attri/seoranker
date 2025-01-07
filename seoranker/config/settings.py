@@ -9,6 +9,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Validate required API keys
 if not SERPER_API_KEY:
@@ -17,6 +18,8 @@ if not EXA_API_KEY:
     raise ValueError("EXA_API_KEY not found in environment variables")
 if not ANTHROPIC_API_KEY:
     raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found in environment variables")
 
 # LangChain Configuration
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "true")

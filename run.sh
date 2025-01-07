@@ -37,78 +37,57 @@ verify_env() {
     return 0
 }
 
-# Check if poetry is installed and accessible
+# Check if poetry is installed
 if ! command -v poetry &> /dev/null; then
     echo -e "${RED}Poetry not found. Installing...${NC}"
     install_poetry
 fi
 
-# Verify poetry installation
-if ! command -v poetry &> /dev/null; then
-    echo -e "${RED}Poetry installation failed. Please install manually:${NC}"
-    echo "curl -sSL https://install.python-poetry.org | python3 -"
-    echo "export PATH=\"/Users/$USER/.local/bin:$PATH\""
-    exit 1
-fi
-
-# Check if project is already set up
+# Initialize project if needed
 if [ ! -f "pyproject.toml" ]; then
-    echo -e "${YELLOW}Project not initialized. Running setup...${NC}"
-    bash setup.sh
-else
-    echo -e "${GREEN}Project already initialized${NC}"
+    echo -e "${YELLOW}Initializing project...${NC}"
+    poetry init --name "seoranker" --description "SEO Content Generator" --author "Your Name <your.email@example.com>" --python "^3.9" --dependency "python-dotenv" --dependency "langchain" --dependency "langchain-anthropic" --dependency "langchain-exa" --dependency "exa-py" --no-interaction
 fi
 
-# Create and activate virtual environment
 echo -e "${GREEN}Setting up Python environment...${NC}"
 poetry env use python3
-poetry config virtualenvs.in-project true
+echo -e "Using virtualenv: $(poetry env info --path)"
 
-# Install dependencies
 echo -e "${GREEN}Installing/Updating dependencies...${NC}"
-poetry install --no-cache
-
-# Check for .env file and create if needed
-if [ ! -f ".env" ]; then
-    echo -e "${YELLOW}No .env file found. Creating from template...${NC}"
-    if [ -f ".env.example" ]; then
-        cp .env.example .env
-        echo -e "${RED}Please edit .env file with your API keys before continuing${NC}"
-        exit 1
-    else
-        echo -e "${RED}No .env.example found. Cannot create .env file${NC}"
-        exit 1
-    fi
-fi
-
-# Source the environment variables
-set -a
-source .env
-set +a
+poetry install
 
 # Verify environment variables
-if ! verify_env; then
-    echo -e "${RED}Please set all required environment variables in .env file${NC}"
-    exit 1
-fi
+verify_env || exit 1
 
-# Add this after verifying environment variables
 echo -e "${GREEN}Verifying project structure...${NC}"
+
+# Create config if it doesn't exist
 if [ ! -f "seoranker/config/settings.py" ]; then
-    echo -e "${RED}Missing settings file. Creating...${NC}"
-    # Create settings file
+    echo -e "${YELLOW}Creating config...${NC}"
     mkdir -p seoranker/config
-    cat > seoranker/config/settings.py << 'EOL'
+    cat > seoranker/config/settings.py << EOL
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
 load_dotenv()
 
-# API Keys
+# API Keys with validation
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Validate required API keys
+if not SERPER_API_KEY:
+    raise ValueError("SERPER_API_KEY not found in environment variables")
+if not EXA_API_KEY:
+    raise ValueError("EXA_API_KEY not found in environment variables")
+if not ANTHROPIC_API_KEY:
+    raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found in environment variables")
 
 # LangChain Configuration
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "true")
@@ -130,8 +109,98 @@ EOL
     touch seoranker/config/__init__.py
 fi
 
-# Update the test import command
-echo -e "${GREEN}Running SEO Content Generator...${NC}"
-poetry run python scripts/generate_article.py
+# Function to configure models
+configure_models() {
+    echo "Model Configuration"
+    echo "------------------"
+    echo "1. Configure Blog Generation Model"
+    echo "2. Configure Social Media Model"
+    echo "3. Back to Main Menu"
+    
+    read -p "Select option (1-3): " choice
+    
+    case $choice in
+        1)
+            configure_model "blog"
+            ;;
+        2)
+            configure_model "social"
+            ;;
+        3)
+            return
+            ;;
+        *)
+            echo "Invalid choice"
+            ;;
+    esac
+}
 
-echo -e "${GREEN}Done!${NC}"
+configure_model() {
+    task=$1
+    echo "Select provider for $task generation:"
+    echo "1. Anthropic (Claude)"
+    echo "2. Groq (Mixtral)"
+    echo "3. Local LLM"
+    
+    read -p "Select provider (1-3): " provider
+    
+    case $provider in
+        1)
+            model="claude-3-sonnet-20240229"
+            provider_name="anthropic"
+            ;;
+        2)
+            model="mixtral-8x7b-32768"
+            provider_name="groq"
+            ;;
+        3)
+            echo "Available local models:"
+            curl -s localhost:1234/v1/models | jq -r '.data[].id'
+            read -p "Enter model name: " model
+            provider_name="local"
+            ;;
+        *)
+            echo "Invalid choice"
+            return
+            ;;
+    esac
+    
+    # Update config
+    python -c "
+from seoranker.config.model_config import ModelConfig, TaskType, ModelProvider
+config = ModelConfig()
+config.update_model_config(
+    TaskType('$task'),
+    ModelProvider('$provider_name'),
+    '$model'
+)
+"
+    echo "Configuration updated!"
+}
+
+# Main menu
+while true; do
+    echo -e "\nSEO Content Generator"
+    echo "-------------------"
+    echo "1. Run Content Generator"
+    echo "2. Configure Models"
+    echo "3. Exit"
+    
+    read -p "Select option (1-3): " choice
+    
+    case $choice in
+        1)
+            python -m seoranker.main
+            ;;
+        2)
+            configure_models
+            ;;
+        3)
+            echo "Exiting..."
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice"
+            ;;
+    esac
+done

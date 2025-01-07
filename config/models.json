@@ -1,0 +1,10 @@
+{
+  "blog": {
+    "provider": "anthropic",
+    "model": "claude-3-sonnet-20240229"
+  },
+  "social": {
+    "provider": "anthropic",
+    "model": "claude-3-sonnet-20240229"
+  }
+}

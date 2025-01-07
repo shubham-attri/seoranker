@@ -1,5 +1,6 @@
 import requests
 import json
+from seoranker.tools.exa_search import ExaSearchTool
 
 # Replace with your actual Medium integration token and user ID
 MEDIUM_TOKEN = 'your_medium_integration_token'
@@ -30,9 +31,33 @@ def post_to_medium(title, content, tags, publish_status='draft'):
     print('Status code:', response.status_code)
     print('Response:', response.json())
 
-if __name__ == "__main__":
-    article_title = "Your Article Title"
-    article_content = "# Hello World!\nThis is my first article using the Medium API."
-    article_tags = ["python", "api", "medium"]
+def main():
+    print("\n=== SEO Content Knowledge Base Builder ===")
+    print("\nEnter keywords (one per line, empty line to finish):")
+    keywords = []
+    while True:
+        keyword = input().strip()
+        if not keyword:
+            break
+        # Clean and normalize keyword
+        keyword = keyword.lower().strip()
+        if keyword and keyword not in keywords:  # Avoid duplicates in input
+            keywords.append(keyword)
+    
+    if not keywords:
+        print("No keywords provided. Exiting...")
+        return
+    
+    print(f"\nProcessing {len(keywords)} unique keywords...")
+    
+    # Initialize tools
+    exa_tool = ExaSearchTool()
+    
+    # Build knowledge base
+    exa_tool.build_knowledge_base(keywords)
+    
+    print("\nKnowledge base building complete!")
+    print("You can now use 'generate_article.py' to create content using this knowledge base.")
 
-    post_to_medium(article_title, article_content, article_tags)
+if __name__ == "__main__":
+    main()
