@@ -13,6 +13,7 @@ import re
 from seoranker.content.social_generator import SocialGenerator
 from seoranker.config.model_config import ModelConfig, TaskType
 from seoranker.llm.model_factory import ModelFactory
+from seoranker.templates.blog_prompt import BlogPromptTemplate
 
 logger = setup_logger(__name__)
 
@@ -88,11 +89,17 @@ class BlogGenerator:
         # Get relevant internal links
         internal_links = self._get_relevant_internal_links(keyword)
         
-        # Load brand info
-        with open("config/brand.json", "r") as f:
-            brand = json.load(f)
+        # Extract H2 structure from reference articles
+        h2_analysis = "Reference Article Structures:\n"
+        for idx, source in enumerate(content["main_sources"], 1):
+            article_content = source.get("content", "")
+            h2_tags = re.findall(r'<h2[^>]*>(.*?)</h2>', article_content, re.IGNORECASE | re.DOTALL)
+            if h2_tags:
+                h2_analysis += f"\nArticle {idx} Structure:\n"
+                for h2 in h2_tags:
+                    h2_analysis += f"- {h2.strip()}\n"
         
-        # Add Bestia Brisk product info and brand story
+        # Add Bestia Brisk product info
         bestia_product = {
             "name": "Bestia Brisk Original Instant Coffee",
             "url": "https://bestiabrisk.com/products/bestia-brisk-original-instant-coffee",
@@ -103,126 +110,17 @@ class BlogGenerator:
                 "roast": "Light Roast (Slow Roasted)",
                 "production": "Small Batch",
                 "type": "Instant Coffee (Granule)"
-            },
-            "brand_story": {
-                "mission": "Bringing premium Coorg coffee directly to ambitious professionals",
-                "values": ["Quality", "Authenticity", "Sustainability", "Innovation"],
-                "unique_selling_points": [
-                    "Single-origin from Coorg's finest estates",
-                    "AAA grade beans selection",
-                    "Small-batch production for quality control",
-                    "Perfect blend of Arabica smoothness and Robusta strength"
-                ]
             }
         }
         
-        return f"""
-Generate a comprehensive, SEO-optimized blog post about {keyword}.
-
-Brand Voice Requirements:
-- Bold and confident tone that appeals to ambitious, driven individuals
-- We source the finest coffee for you. That's our promise. This is our tag line.
-- Focus on premium quality and luxury coffee experience
-- Emphasize the unique blend of 60% Arabica, 40% Robusta from Coorg
-- Highlight AAA grade beans and small-batch production
-- Target audience: Young professionals, entrepreneurs, and coffee enthusiasts
-- Use phrases like "bold", "premium", "luxury", "elevate your coffee experience"
-- Maintain a balance between expert knowledge and accessible language
-
-Brand Story Integration:
-Include a section titled "The Bestia Brisk Difference" that explains:
-- Our commitment to sourcing AAA grade beans from Coorg's finest estates
-- The artisanal small-batch production process
-- How we maintain bean quality through careful selection and roasting
-- Our mission to bring premium coffee experiences to ambitious professionals
-- The perfect balance of Arabica and Robusta in our signature blend
-
-Product Integration:
-- Naturally mention Bestia Brisk Original Instant Coffee
-- Highlight key features: AAA grade, Single Origin from Coorg, Small Batch production
-- Emphasize the perfect blend of Arabica (smoothness) and Robusta (strength)
-- Reference the convenience of premium instant coffee
-
-Content Guidelines:
-1. Length and Depth:
-   - Minimum 2000 words
-   - Deep dive into each aspect
-   - Include detailed examples and explanations
-   - Break down complex topics into digestible sections
-
-2. Link Strategy:
-   - For coffee product mentions: Direct ONLY to Bestia Brisk product page
-   - For educational/informational content: Use authority external links
-   - For brewing methods/tips: Link to our blog posts
-   - External URL format: <a href="url" target="_blank">text</a>
-
-3. Content Sections (Expanded):
-   - Introduction (Hook + Value Proposition)
-   - History and Origins (Detailed background)
-   - Scientific Breakdown (Caffeine content, chemical properties)
-   - Flavor Profile Analysis (Detailed tasting notes)
-   - Growing and Production Methods
-   - The Bestia Brisk Difference (Our premium approach)
-   - Brewing Techniques and Tips
-   - Health Benefits and Considerations
-   - Sustainability and Future
-   - Conclusion with CTA
-
-4. Product Integration Rules:
-   - When discussing coffee products: Reference ONLY Bestia Brisk
-   - When comparing coffee types: Focus on our blend's advantages
-   - For purchasing options: Direct to our product page
-   - Avoid mentioning competitor products
-
-HTML Format Requirements:
-- Use one <h1> tag for the main title
-- Use 2-3 <h2> tags for main sections
-- Use <h3> tags for subsections
-- Use <p> tags for paragraphs
-- Use <ul> and <li> tags for lists
-- Use proper <a> tags for links with target="_blank" for external links
-
-Content Requirements:
-1. Include these product references naturally:
-{json.dumps([bestia_product], indent=2)}
-
-2. Address these customer questions:
-{json.dumps(content["questions"], indent=2)}
-
-3. Include these internal blog links in relevant contexts:
-{json.dumps(internal_links["relevant_links"], indent=2)}
-
-4. Use these sources for research:
-{json.dumps(content["main_sources"], indent=2)}
-
-SEO Requirements:
-- Primary keyword: {keyword}
-- Include keyword naturally throughout content
-- Include the internal blog links provided above
-- Include 2-3 external authority links (only for scientific/educational content)
-- Minimum length: 2000 words
-- Include meta description (155 characters)
-
-CTA Styles (Use one of these):
-1. Premium Experience CTA:
-   "Experience the bold luxury of Coorg's finest coffee. Try Bestia Brisk Original Instant Coffee today and elevate your daily ritual."
-
-2. Quality Focus CTA:
-   "Taste the difference AAA grade beans make. Order your Bestia Brisk Original Instant Coffee and discover premium coffee convenience."
-
-3. Brand Story CTA:
-   "Join the community of ambitious professionals who choose Bestia Brisk. Start your premium coffee journey today."
-
-4. Value Proposition CTA:
-   "Why settle for ordinary when you can have extraordinary? Upgrade to Bestia Brisk's signature blend of Arabica smoothness and Robusta strength."
-
-Remember:
-- Focus on premium positioning
-- Direct all product interest to Bestia Brisk
-- Maintain authoritative but accessible tone
-- NO image suggestions needed
-- NO competitor product links
-"""
+        return BlogPromptTemplate.format_prompt(
+            keyword=keyword,
+            h2_analysis=h2_analysis,
+            product_info=json.dumps([bestia_product], indent=2),
+            questions=json.dumps(content["questions"], indent=2),
+            internal_links=json.dumps(internal_links["relevant_links"], indent=2),
+            sources=json.dumps(content["main_sources"], indent=2)
+        )
 
     def _extract_metadata(self, content: str) -> Dict:
         """Extract metadata and content from Claude's response"""

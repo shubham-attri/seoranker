@@ -1,160 +1,88 @@
 import csv
-from datetime import datetime
+import logging
 from pathlib import Path
-from typing import Dict, List
-from seoranker.utils.logger import setup_logger
+from typing import Dict, Optional
+import html
+import base64
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class ContentArchive:
-    """Manage content archives in CSV format"""
-    
     def __init__(self):
-        self.archive_dir = Path("knowledge_base")
-        self.archive_dir.mkdir(exist_ok=True)
+        self.archive_path = Path("knowledge_base/blog_archive.csv")
+        self.archive_path.parent.mkdir(exist_ok=True)
         
-        # Define CSV paths
-        self.blog_archive_path = self.archive_dir / "blog_archive.csv"
-        self.social_archive_path = self.archive_dir / "social_archive.csv"
+    def _encode_html(self, content: str) -> str:
+        """Encode HTML content to avoid CSV parsing issues"""
+        return base64.b64encode(content.encode('utf-8')).decode('utf-8')
         
-        # Initialize CSV files if they don't exist
-        self._initialize_archives()
-    
-    def _initialize_archives(self):
-        """Create CSV files with headers if they don't exist"""
-        # Blog archive headers
-        blog_headers = [
-            "blog_id", 
-            "keyword",
-            "title",
-            "meta_description",
-            "file_path",
-            "created_at",
-            "status"
-        ]
-        
-        # Social archive headers
-        social_headers = [
-            "content_id",
-            "blog_id",
-            "platform",
-            "content",
-            "created_at",
-            "status"
-        ]
-        
-        # Initialize blog archive
-        if not self.blog_archive_path.exists():
-            with open(self.blog_archive_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow(blog_headers)
-        
-        # Initialize social archive
-        if not self.social_archive_path.exists():
-            with open(self.social_archive_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow(social_headers)
-    
-    def save_content(self, content: Dict) -> Dict:
-        """Save blog content to CSV archive"""
+    def _decode_html(self, encoded: str) -> str:
+        """Decode HTML content from base64"""
+        return base64.b64decode(encoded.encode('utf-8')).decode('utf-8')
+
+    def add_entry(self, entry: Dict) -> bool:
+        """Add new entry to archive"""
         try:
-            # Generate blog ID
-            blog_id = self._generate_blog_id()
+            # Prepare headers and entry
+            headers = ['keyword', 'title', 'meta_description', 'file_path', 'status', 'word_count', 'body']
             
-            # Prepare blog row
-            blog_row = {
-                "blog_id": blog_id,
-                "keyword": content["keyword"],
-                "title": content["title"],
-                "meta_description": content["meta_description"],
-                "file_path": content.get("files", {}).get("blog", ""),
-                "created_at": datetime.now().isoformat(),
-                "status": "draft"  # Always start as draft
-            }
+            # Encode HTML body to avoid CSV issues
+            entry['body'] = self._encode_html(entry['body'])
             
-            # Append to blog archive
-            with open(self.blog_archive_path, 'a', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=blog_row.keys())
-                writer.writerow(blog_row)
+            # Create file with headers if it doesn't exist
+            if not self.archive_path.exists():
+                with open(self.archive_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=headers)
+                    writer.writeheader()
             
-            logger.debug(f"✓ Saved blog to archive: {blog_id}")
-            
-            # Save social content versions
-            versions = {"blog": True, "linkedin": False, "twitter": False}
-            
-            # Save LinkedIn version if available
-            if linkedin_content := content.get("files", {}).get("linkedin"):
-                self._save_social_content(
-                    blog_id=blog_id,
-                    platform="linkedin",
-                    content=linkedin_content,
-                    status="draft"
-                )
-                versions["linkedin"] = True
-            
-            # Save Twitter version if available
-            if twitter_content := content.get("files", {}).get("twitter"):
-                self._save_social_content(
-                    blog_id=blog_id,
-                    platform="twitter",
-                    content=twitter_content,
-                    status="draft"
-                )
-                versions["twitter"] = True
-            
-            return {
-                "status": "success",
-                "blog_id": blog_id,
-                "timestamp": blog_row["created_at"],
-                "versions": versions
-            }
+            # Append entry
+            with open(self.archive_path, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                writer.writerow(entry)
+                
+            logger.info(f"Added entry for keyword: {entry['keyword']}")
+            return True
             
         except Exception as e:
-            logger.error(f"Error saving to archive: {str(e)}")
-            return {"status": "error", "error": str(e)}
-    
-    def _save_social_content(self, blog_id: str, platform: str, content: str, status: str = "draft"):
-        """Save social media content to CSV archive"""
-        social_row = {
-            "content_id": f"{platform}_{blog_id}",
-            "blog_id": blog_id,
-            "platform": platform,
-            "content": content,
-            "created_at": datetime.now().isoformat(),
-            "status": status
-        }
-        
-        with open(self.social_archive_path, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=social_row.keys())
-            writer.writerow(social_row)
-    
-    def get_related_content(self, keyword: str, limit: int = 3) -> Dict:
-        """Get related blog posts from archive"""
-        related_blogs = []
-        
+            logger.error(f"Error adding archive entry: {str(e)}")
+            return False
+            
+    def get_entry(self, keyword: str) -> Optional[Dict]:
+        """Get entry by keyword"""
         try:
-            with open(self.blog_archive_path, 'r', encoding='utf-8') as f:
+            if not self.archive_path.exists():
+                return None
+                
+            with open(self.archive_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    # Simple keyword matching for now
-                    if keyword.lower() in row["keyword"].lower() or keyword.lower() in row["title"].lower():
-                        related_blogs.append(row)
-                        if len(related_blogs) >= limit:
-                            break
-            
-            return {"blogs": related_blogs}
+                    if row['keyword'].lower() == keyword.lower():
+                        # Decode HTML body
+                        row['body'] = self._decode_html(row['body'])
+                        return row
+                        
+            return None
             
         except Exception as e:
-            logger.error(f"Error getting related content: {str(e)}")
-            return {"blogs": []}
-    
-    def _generate_blog_id(self) -> str:
-        """Generate unique blog ID"""
+            logger.error(f"Error getting archive entry: {str(e)}")
+            return None
+
+    def get_all_entries(self) -> list:
+        """Get all archive entries"""
         try:
-            with open(self.blog_archive_path, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                next(reader)  # Skip header
-                count = sum(1 for row in reader)
-            return f"blog_{count + 1}"
-        except Exception:
-            return "blog_1" 
+            entries = []
+            if not self.archive_path.exists():
+                return entries
+                
+            with open(self.archive_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # Decode HTML body
+                    row['body'] = self._decode_html(row['body'])
+                    entries.append(row)
+                    
+            return entries
+            
+        except Exception as e:
+            logger.error(f"Error getting archive entries: {str(e)}")
+            return [] 

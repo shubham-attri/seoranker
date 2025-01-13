@@ -1,12 +1,32 @@
 from seoranker.tools.exa_search import ExaSearchTool
 from seoranker.utils.logger import setup_logger
+from typing import List
 
 logger = setup_logger(__name__)
 
+def build_knowledge_base(keywords: List[str]) -> bool:
+    """Build knowledge base from a list of keywords using Exa Search"""
+    try:
+        logger.info(f"\nProcessing {len(keywords)} keywords...")
+        
+        # Initialize Exa tool
+        exa_tool = ExaSearchTool()
+        
+        # Build knowledge base
+        exa_tool.build_knowledge_base(keywords)
+        
+        logger.info("\n✓ Knowledge base building complete!")
+        logger.info(f"Data saved in: knowledge_base/content_database.csv")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error building knowledge base: {str(e)}")
+        return False
+
 def main():
+    """CLI entry point"""
     print("\n=== SEO Content Knowledge Base Builder ===")
-    print("\nThis tool will build a research database for your keywords.")
-    print("Enter each keyword on a new line (empty line to finish):")
+    print("\nEnter keywords (one per line, empty line to finish):")
     
     keywords = []
     while True:
@@ -22,16 +42,7 @@ def main():
         print("No keywords provided. Exiting...")
         return
     
-    print(f"\nProcessing {len(keywords)} unique keywords...")
-    
-    # Initialize Exa tool
-    exa_tool = ExaSearchTool()
-    
-    # Build knowledge base
-    exa_tool.build_knowledge_base(keywords)
-    
-    print("\nKnowledge base building complete!")
-    print(f"Data saved in: knowledge_base/content_database.csv")
+    build_knowledge_base(keywords)
 
 if __name__ == "__main__":
-    main() 
+    main()

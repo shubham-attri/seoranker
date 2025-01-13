@@ -27,12 +27,20 @@ class ModelConfig:
     def _create_default_config(self):
         default_config = {
             "blog": {
-                "provider": "anthropic",
-                "model": "claude-3-sonnet-20240229"
+                "provider": "local",
+                "model": "llama-3.2-3b-instruct",
+                "fallback": {
+                    "provider": "groq",
+                    "model": "mixtral-8x7b-32768"
+                }
             },
             "social": {
                 "provider": "groq",
-                "model": "mixtral-8x7b-32768"
+                "model": "mixtral-8x7b-32768",
+                "fallback": {
+                    "provider": "local",
+                    "model": "llama-3.2-3b-instruct"
+                }
             }
         }
         
