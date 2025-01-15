@@ -16,3 +16,4 @@ input/
 # Project specific
 *.log
 .DS_Store
+.env*
