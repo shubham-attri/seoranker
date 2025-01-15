@@ -2,8 +2,7 @@ import csv
 import logging
 from pathlib import Path
 from typing import Dict, Optional
-import html
-import base64
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -11,14 +10,26 @@ class ContentArchive:
     def __init__(self):
         self.archive_path = Path("knowledge_base/blog_archive.csv")
         self.archive_path.parent.mkdir(exist_ok=True)
-        
-    def _encode_html(self, content: str) -> str:
-        """Encode HTML content to avoid CSV parsing issues"""
-        return base64.b64encode(content.encode('utf-8')).decode('utf-8')
-        
-    def _decode_html(self, encoded: str) -> str:
-        """Decode HTML content from base64"""
-        return base64.b64decode(encoded.encode('utf-8')).decode('utf-8')
+
+    def _extract_body_content(self, html_content: str) -> str:
+        """Extract clean body content from HTML"""
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            body = soup.find('body')
+            
+            if not body:
+                return html_content
+            
+            # Remove any script or style tags
+            for tag in body.find_all(['script', 'style']):
+                tag.decompose()
+            
+            # Get all content within body, preserving HTML structure
+            return ''.join(str(tag) for tag in body.children if tag.name)
+            
+        except Exception as e:
+            logger.error(f"Error extracting body content: {str(e)}")
+            return html_content
 
     def add_entry(self, entry: Dict) -> bool:
         """Add new entry to archive"""
@@ -26,8 +37,8 @@ class ContentArchive:
             # Prepare headers and entry
             headers = ['keyword', 'title', 'meta_description', 'file_path', 'status', 'word_count', 'body']
             
-            # Encode HTML body to avoid CSV issues
-            entry['body'] = self._encode_html(entry['body'])
+            # Extract clean body content
+            entry['body'] = self._extract_body_content(entry['body'])
             
             # Create file with headers if it doesn't exist
             if not self.archive_path.exists():
@@ -57,8 +68,6 @@ class ContentArchive:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if row['keyword'].lower() == keyword.lower():
-                        # Decode HTML body
-                        row['body'] = self._decode_html(row['body'])
                         return row
                         
             return None
@@ -76,10 +85,7 @@ class ContentArchive:
                 
             with open(self.archive_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
-                for row in reader:
-                    # Decode HTML body
-                    row['body'] = self._decode_html(row['body'])
-                    entries.append(row)
+                entries = list(reader)
                     
             return entries
             

@@ -6,6 +6,7 @@ import csv
 from typing import Dict, Optional, List, Any
 from seoranker.utils.logger import setup_logger
 import os
+from bs4 import BeautifulSoup
 
 logger = setup_logger(__name__)
 
@@ -118,13 +119,15 @@ class ShopifyPublisher:
     def create_article(self, entry: Dict) -> Optional[Dict]:
         """Create article in Shopify"""
         try:
-            # Remove H1 tag from body since title is already set
+            # Get clean body content
             body = entry["body"]
-            if body.startswith("<h1>"):
-                # Find the end of first H1 tag and remove everything between
-                h1_end = body.find("</h1>")
-                if h1_end != -1:
-                    body = body[h1_end + 5:].strip()  # +5 to skip </h1>
+            
+            # Remove H1 tag if present (since title is set separately)
+            soup = BeautifulSoup(body, 'html.parser')
+            h1_tag = soup.find('h1')
+            if h1_tag:
+                h1_tag.decompose()
+                body = str(soup)
             
             mutation = """
             mutation CreateArticle($blogId: ID!) {
@@ -157,11 +160,11 @@ class ShopifyPublisher:
             }
             """ % (
                 entry["title"].replace('"', '\\"'),
-                body.replace('"', '\\"'),  # Use modified body
+                body.replace('"', '\\"'),
                 entry.get("meta_description", "").replace('"', '\\"'),
                 entry["keyword"].replace('"', '\\"'),
                 self.author.replace('"', '\\"'),
-                entry.get("meta_description", "").replace('"', '\\"')  # Use same value as summary
+                entry.get("meta_description", "").replace('"', '\\"')
             )
             
             variables = {"blogId": self.blog_id}
