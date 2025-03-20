@@ -8,7 +8,14 @@ logger = logging.getLogger(__name__)
 
 class ContentArchive:
     def __init__(self):
+        # Main archive path for backward compatibility
         self.archive_path = Path("knowledge_base/blog_archive.csv")
+        
+        # Add specific archive paths
+        self.blog_archive_path = Path("knowledge_base/blog_archive.json")
+        self.social_archive_path = Path("knowledge_base/social_archive.json")
+        
+        # Create directories if they don't exist
         self.archive_path.parent.mkdir(exist_ok=True)
 
     def _extract_body_content(self, html_content: str) -> str:
@@ -91,4 +98,35 @@ class ContentArchive:
             
         except Exception as e:
             logger.error(f"Error getting archive entries: {str(e)}")
-            return [] 
+            return []
+            
+    def get_related_content(self, keyword: str, limit: int = 3) -> Dict:
+        """Get related content for a keyword"""
+        # This would be implemented to return related blogs
+        return {"blogs": []}
+        
+    def save_content(self, content: Dict) -> Dict:
+        """Save content to archive"""
+        try:
+            # Add to CSV archive
+            result = self.add_entry({
+                "keyword": content["keyword"],
+                "title": content["title"],
+                "meta_description": content["meta_description"],
+                "file_path": content.get("file_path", ""),
+                "status": "draft",
+                "word_count": 0,  # This would be calculated
+                "body": content.get("body", "")
+            })
+            
+            return {
+                "status": "success" if result else "error",
+                "blog_id": str(content["keyword"]).replace(" ", "_").lower()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error saving content: {str(e)}")
+            return {
+                "status": "error",
+                "error": str(e)
+            } 

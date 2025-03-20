@@ -333,6 +333,16 @@ def generate_content_batch():
         logger.error(f"Error in batch content generation: {str(e)}", exc_info=True)
         print(f"\n✗ Error: {str(e)}")
 
+def configure_models():
+    """Configure LLM models for content generation"""
+    try:
+        from seoranker.config.model_config import ModelConfig
+        config = ModelConfig()
+        config.configure_models()
+    except Exception as e:
+        logger.error(f"Error configuring models: {str(e)}")
+        print(f"\n✗ Error: {str(e)}")
+
 def main():
     """Main application entry point"""
     try:
