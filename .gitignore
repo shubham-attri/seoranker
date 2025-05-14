@@ -1,13 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-.env
 .venv/
-venv/
-generated_content/
-knowledge_base/
-output/
-input/
 
 # IDE
 .vscode/
