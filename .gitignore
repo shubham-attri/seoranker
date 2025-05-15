@@ -11,3 +11,9 @@ __pycache__/
 *.log
 .DS_Store
 .env*
+
+# Ignore all files in the filteredcontent and rawingestionfolder directories
+filteredcontent/
+rawingestionfolder/
+scraped.db
+keywords.txt

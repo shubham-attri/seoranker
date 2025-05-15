@@ -1,21 +1,47 @@
-import asyncio
+"""
+This file contains functions and classes related to content ingestion and analysis.
+"""
+
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 import markdown
-import http.client
 import json
 import os
 from bs4 import BeautifulSoup
-
-from langgraph.prebuilt import tool
+from pydantic import BaseModel
+from db import connect_db
 from typing import Optional, Dict, List
 import aiohttp
-import os
+import logging
+
+if os.getenv("LOG_LEVEL") == "DEBUG":
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 
+class ExtractContentParts(BaseModel):
+    """
+    Extracted content parts from a URL.
+    """
+    h1s: List[str]
+    h2s: List[str]
+    h3s: List[str]
+    h4s: List[str]
+    paragraphs: List[str]
+    lists: List[str]
+    error: Optional[str]
 
-@tool
-async def extract_markdown_from_url(url: str) -> Dict:
+class SearchResults(BaseModel):
+    """
+    Google search results.
+    """
+    organic_results: List[Dict]
+    people_also_ask: List[str]
+    related_searches: List[str]
+    error: Optional[str]
+
+async def extract_markdown_from_url(url: str) -> ExtractContentParts:
     """
     Extracts structured content (headings, paragraphs) from a URL using Crawl4AI.
     
@@ -23,21 +49,21 @@ async def extract_markdown_from_url(url: str) -> Dict:
         url (str): Valid URL to extract content from
         
     Returns:
-        Dict: {
-            "content": {
-                "h1s": List[str],
-                "h2s": List[str],
-                "h3s": List[str],
-                "h4s": List[str],
+        ExtractContentParts: {
+            "h1s": List[str],
+            "h2s": List[str],
+            "h3s": List[str],
+            "h4s": List[str],
                 "paragraphs": List[str]
             } | None,
             "error": str | None
         }
     """
+    import re
     try:
         # Validate URL format
         if not url.startswith(('http://', 'https://')):
-            return {"content": None, "error": "Invalid URL format"}
+            return ExtractContentParts(h1s=[], h2s=[], h3s=[], h4s=[], paragraphs=[], lists=[], error="Invalid URL format")
         
         # Crawl4AI
         config = CrawlerRunConfig(
@@ -45,24 +71,74 @@ async def extract_markdown_from_url(url: str) -> Dict:
         )
         
         async with AsyncWebCrawler() as crawler:
+            logging.info(f"Crawling {url}")
             result = await crawler.arun(url, config=config)
-            result.markdown = result.markdown
             
             if result.success:
-                with open(result.markdown.split('\n')[0].split('#')[1].strip() + ".json", "w", encoding="utf-8") as f:
-                    f.write(json.dumps(extract_content_parts(result.markdown)))
+                logging.info(f"Successfully crawled {url}")
+
+                os.makedirs("rawingestionfolder", exist_ok=True)
+                os.makedirs("filteredcontent", exist_ok=True)
+                
+                title = result.markdown.split('\n')[0].split('#')[1].strip()
+                safe_title = re.sub(r'[^\w\-_. ]', '_', title)
+                
+                with open(os.path.join("rawingestionfolder", safe_title + ".md"), "w", encoding="utf-8") as f:
+                    f.write(result.markdown)
+                logging.info(f"Successfully saved {url} to rrawingestionfolder")
+
+
+                logging.info(f"Extracting content parts from our makedown content")
+                extracted_content_parts = extract_content_parts(result.markdown)
+
+                with open(os.path.join("filteredcontent", extracted_content_parts["h1s"][0] + ".json"), "w", encoding="utf-8") as f:
+                    f.write(json.dumps(extracted_content_parts))
+                logging.info(f"Successfully saved {url} to filteredcontent with title {extracted_content_parts['h1s'][0]}.json")
+                
+                os.rename(
+                    os.path.join("rawingestionfolder", safe_title + ".md"), 
+                    os.path.join("rawingestionfolder", extracted_content_parts["h1s"][0] + ".md")
+                )
+                logging.info(f"Successfully renamed {url} from {safe_title}.md to {extracted_content_parts['h1s'][0]}.md in rrawingestionfolder")
+                
+                return ExtractContentParts(
+                    h1s=[], 
+                    h2s=[], 
+                    h3s=[], 
+                    h4s=[], 
+                    paragraphs=[], 
+                    lists=[], 
+                    error=None
+                )
+
+        
+            else:
+                logging.error(f"Failed to crawl {url}: {result.error_message}")
                 return {
-                    "content": extract_content_parts(result.markdown),
-                    "error": None
+                    "h1s": [], 
+                    "h2s": [], 
+                    "h3s": [], 
+                    "h4s": [], 
+                    "paragraphs": [], 
+                    "lists": [], 
+                    "error": result.error_message
                 }
-            return {"content": None, "error": result.error_message}
+            
             
     except Exception as e:
-        return {"content": None, "error": f"Extraction failed: {str(e)}"}
+        logging.error(f"Failed to crawl {url}: {str(e)}")
+        return {
+            "h1s": [], 
+            "h2s": [], 
+            "h3s": [], 
+            "h4s": [], 
+            "paragraphs": [], 
+            "lists": [], 
+            "error": f"Extraction failed: {str(e)}"
+        }
     
 
-@tool
-async def search_google(query: str, gl: str = "in") -> Dict:
+async def search_google(query: str, gl: str = "in") -> SearchResults:
     """
     Performs Google search using Serper API with advanced error handling.
     
@@ -71,7 +147,7 @@ async def search_google(query: str, gl: str = "in") -> Dict:
         gl (str): Country code (default: "in")
         
     Returns:
-        Dict: {
+        SearchResults: {
             "organic_results": List[Dict],
             "people_also_ask": List[str],
             "related_searches": List[str],
@@ -81,7 +157,7 @@ async def search_google(query: str, gl: str = "in") -> Dict:
     try:
         api_key = os.getenv("SERPER_API_KEY")
         if not api_key:
-            return {"error": "Missing SERPER_API_KEY environment variable"}
+            return SearchResults(error="Missing SERPER_API_KEY environment variable")
             
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -103,69 +179,54 @@ async def search_google(query: str, gl: str = "in") -> Dict:
                 }
             ) as response:
                 data = await response.json()
+
+
+
+                if data.get("relatedSearches"):
+                    for keyword in data["relatedSearches"]:
+                        c, conn = connect_db()
+                        c.execute("INSERT OR IGNORE INTO crawled (keyword, crawled) VALUES (?, ?)", (keyword["query"], 1))
+                        conn.commit()
                 
-                return {
-                    "organic_results": data.get("organic", []),
-                    "people_also_ask": data.get("peopleAlsoAsk", []),
-                    "related_searches": data.get("relatedSearches", []),
-                    "error": None
-                }
+                if data.get("peopleAlsoAsk"):
+                    for keyword in data["peopleAlsoAsk"]:
+                        c, conn = connect_db()
+                        c.execute("INSERT OR IGNORE INTO crawled (keyword, crawled) VALUES (?, ?)", (keyword["question"], 1))
+                        conn.commit()
+                
+                if data.get("peopleAlsoAsk"):
+                    data["peopleAlsoAsk"] = [item["question"] for item in data["peopleAlsoAsk"]]
+                if data.get("relatedSearches"):
+                    data["relatedSearches"] = [item["query"] for item in data["relatedSearches"]]
+                
+                return SearchResults(
+                    organic_results=data.get("organic", []),
+                    people_also_ask=data.get("peopleAlsoAsk", []),
+                    related_searches=data.get("relatedSearches", []),
+                    error=None
+                )
                 
     except Exception as e:
-        return {
-            "organic_results": [],
-            "people_also_ask": [],
-            "related_searches": [],
-            "error": f"Search failed: {str(e)}"
-        }
+        return SearchResults(
+            organic_results=[],
+            people_also_ask=[],
+            related_searches=[],
+            error=f"Search failed: {str(e)}"
+        )
 
-# def extract_markdown_from_url_imp(url: str, output_file: str = "article.json") -> str:
-#     config = CrawlerRunConfig(
-#         markdown_generator=DefaultMarkdownGenerator()
-#     )
-#     async def main():
-#         async with AsyncWebCrawler() as crawler:
-#             result = await crawler.arun(url, config=config)
-
-#             if result.success:
-#                 markdown = result.markdown                
-#                 with open(output_file, "w", encoding="utf-8") as f:
-#                     f.write(json.dumps(extract_content_parts(markdown)))
-#                 print(f"Markdown saved to {output_file}")
-#                 return extract_content_parts(markdown)
-#             else:
-#                 print("Crawl failed:", result.error_message)
-#                 return ""
-#     return asyncio.run(main())
-
-
-# def search_google(query: str) -> dict:
-#     conn = http.client.HTTPSConnection("google.serper.dev")
-#     payload = json.dumps({
-#         "q": query,
-#         "gl": "in",
-#         "relatedSearches": True,
-#         "peopleAlsoAsk": True,
-#         "organic": {
-#             "links": True,
-#             "titles": True,
-#             "snippet": True
-#         }
-#     })
-#     headers = {
-#         'X-API-KEY': os.getenv("SERPER_API_KEY"),
-#         'Content-Type': 'application/json'
-#     }
-#     conn.request("POST", "/search", payload, headers)
-#     res = conn.getresponse()
-#     data = res.read()
-#     return json.loads(data.decode("utf-8"))
-
-def extract_content_parts(markdown_text: str) -> dict:
+def extract_content_parts(markdown_text: str) -> Dict:
     """
     Extract parts of content like headings (H1, H2, H3, H4), paragraphs, lists, and other relevant content types.
     """
-    content_parts = {}
+    content_parts = {
+        "h1s": [],
+        "h2s": [],
+        "h3s": [],
+        "h4s": [],
+        "paragraphs": [],
+        "lists": [],
+        "error": None
+    }
     md = markdown.Markdown()
     html = md.convert(markdown_text)
     soup = BeautifulSoup(html, "html.parser")

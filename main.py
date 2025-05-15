@@ -1,57 +1,88 @@
-from langchain_ollama.llms import OllamaLLM
+"""
+This file contains functions and classes related to main operations
+"""
 
+from langchain_ollama.llms import OllamaLLM
 from langchain.chat_models import init_chat_model
 from ingestcontent import extract_markdown_from_url, search_google
-import json
+import asyncio
+from db import connect_db
+import logging
 
-llm = init_chat_model("qwen3:1.7b", model_provider="ollama")
+# https://langchain-ai.github.io/langgraph/agents/agents/#1-install-dependencies (for langgraph) 
+model = init_chat_model(
+    "qwen3:1.7b", model_provider="ollama",
+    temperature=0,
+    )
 
+# https://bestiabrisk.com/blogs/blogs/how-to-brew-the-perfect-cup-of-instant-coffee-tips-and-tricks
 
+# Adding internal links with link like above in our markdown content for blog posts and SEO
 
-result = extract_markdown_from_url("https://sleepyowl.co/collections/premium-instant-coffee?srsltid=AfmBOooZE27KxJPLx64dtZ60tfBSdztGy90EAXz6msyyahzuD19zAaxw","sleepyowl.json")
+c, conn = connect_db()
 
-response = llm.invoke([
-    {"role": "user", "content": " Does the conent in the following markdown is good for SEO and which pages should we target only tell those we will skip brand pages, give direct answer as yes or no?\n\n{result}"}
-])
-
-with open("llmanswer", "w", encoding="utf-8") as f:
-    f.write(response.content)
-
-
-
-from langgraph.graph import StateGraph, END
-
-class AgentState(dict): 
-    pass
-
-builder = StateGraph(AgentState)
-
-# Add nodes
-builder.add_node("web_extractor", extract_markdown_from_url)
-builder.add_node("search_engine", search_google)
-
-# Define edges
-builder.add_edge("web_extractor", "search_engine")
-builder.add_edge("search_engine", END)
-
-# Set entry point
-builder.set_entry_point("web_extractor")
-
-# Compile graph
-research_agent = builder.compile()
+c.execute("CREATE TABLE IF NOT EXISTS crawled (keyword text, crawled integer)")
+conn.commit()
 
 
-async def run_research(url: str):
-    async for step in research_agent.astream(
-        {"url": url},
-        {"recursion_limit": 3}
-    ):
-        if "web_extractor" in step:
-            print(f"Extracted {len(step['web_extractor']['h1s'])} headings")
-        elif "search_engine" in step:
-            print(f"Found {len(step['search_engine']['organic_results'])} results")
+c.execute("CREATE TABLE IF NOT EXISTS keywords (keyword text)")
+conn.commit()
 
-# Run with your URL
-url = "https://www.eatingwell.com/is-instant-coffee-bad-for-you-8382772"
-asyncio.run(run_research(url))
+def add_keyword(keyword):
+    logging.info(f"Adding keyword {keyword} to db")
+    c.execute("INSERT INTO keywords (keyword) VALUES (?)", (keyword,))
+    conn.commit()
 
+def get_keywords():
+    logging.info("Fetching all keywords from db")
+    c.execute("SELECT keyword FROM keywords")
+    return [row[0] for row in c.fetchall()]
+
+async def scrape_keywords():
+    logging.info("Fetching all keywords from db")
+    keywords = get_keywords()
+    logging.info(f"Found {len(keywords)} keywords")
+    for keyword in keywords:
+        c.execute("SELECT * FROM crawled WHERE keyword = ?", (keyword,))
+        if c.fetchone():
+            logging.info(f"Already crawled {keyword}")
+            continue
+        
+        logging.info(f"Scraping {keyword}")
+        results = await search_google(keyword)
+        logging.info(f"Found {len(results.organic_results)} results for {keyword}")
+
+
+        for result in results.organic_results:
+            try:
+
+                # logging.info(f"Checking if {keyword} is already crawled")
+                # c.execute("SELECT * FROM crawled WHERE keyword = ?", (keyword,))
+                # if c.fetchone():
+                #     logging.info(f"Already crawled {keyword}")
+                #     continue
+
+                logging.info(f"Scraping {result['link']}")
+                result = await extract_markdown_from_url(result['link'])
+                if result.error:
+                    logging.error(f"Error scraping {keyword}: {result.error}")
+                    continue
+
+                logging.info(f"Successfully scraped {keyword}")
+                
+                c.execute("INSERT INTO crawled (keyword, crawled) VALUES (?, ?)", (keyword, 1))
+                conn.commit()
+
+            except Exception as e:
+                logging.error(f"Error scraping {keyword}: {e}")
+
+
+logging.info("Adding keywords from keywords.txt to db")
+with open("keywords.txt") as f:
+    for keyword in f.readlines():
+        keyword = keyword.strip()
+        if keyword not in get_keywords():
+            add_keyword(keyword)
+
+
+asyncio.run(scrape_keywords())
